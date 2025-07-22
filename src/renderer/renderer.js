@@ -365,9 +365,9 @@ class iTunesMetadataPuller {
         const songItems = document.querySelectorAll('.song-item');
         songItems.forEach(item => {
             if (item.dataset.filePath === filePath) {
-                const title = metadata.common?.title || filePath.split('\\').pop().split('/').pop().replace(/\.[^/.]+$/, '');
-                const artist = metadata.common?.artist || 'Unknown Artist';
-                const year = metadata.common?.year || '-';
+                const title = metadata.title || filePath.split('\\').pop().split('/').pop().replace(/\.[^/.]+$/, '');
+                const artist = metadata.artist || 'Unknown Artist';
+                const year = metadata.date || '-';
                 
                 const titleElement = item.querySelector('.song-title');
                 const artistElement = item.querySelector('.song-artist');
@@ -381,29 +381,25 @@ class iTunesMetadataPuller {
     }
 
     displayMetadata(metadata) {
-        // Update current metadata display using music-metadata format
-        const common = metadata.common || {};
-        const format = metadata.format || {};
-        
-        document.getElementById('currentTitle').textContent = common.title || 'Unknown Title';
-        document.getElementById('currentArtist').textContent = common.artist || 'Unknown Artist';
-        document.getElementById('currentAlbum').textContent = common.album || 'Unknown Album';
-        document.getElementById('currentAlbumArtist').textContent = common.albumartist || common.artist || 'Unknown Album Artist';
-        document.getElementById('currentYear').textContent = common.year || common.date || 'Unknown Year';
+        // Update current metadata display - metadata structure is already flattened from main.js
+        document.getElementById('currentTitle').textContent = metadata.title || 'Unknown Title';
+        document.getElementById('currentArtist').textContent = metadata.artist || 'Unknown Artist';
+        document.getElementById('currentAlbum').textContent = metadata.album || 'Unknown Album';
+        document.getElementById('currentAlbumArtist').textContent = metadata.albumartist || metadata.artist || 'Unknown Album Artist';
+        document.getElementById('currentYear').textContent = metadata.date || 'Unknown Year';
         document.getElementById('currentTrack').textContent = 
-            common.track?.no ? `${common.track.no}${common.track.of ? ` of ${common.track.of}` : ''}` : 'N/A';
-        document.getElementById('currentGenre').textContent = 
-            Array.isArray(common.genre) ? common.genre.join(', ') : (common.genre || 'Unknown Genre');
+            metadata.track?.no ? `${metadata.track.no}${metadata.track.of ? ` of ${metadata.track.of}` : ''}` : 'N/A';
+        document.getElementById('currentGenre').textContent = metadata.genre || 'Unknown Genre';
         
         // Update technical info
         document.getElementById('fileName').textContent = metadata.fileName || 'Unknown File';
         document.getElementById('fileSize').textContent = this.formatFileSize(metadata.fileSize || 0);
-        document.getElementById('duration').textContent = this.formatDuration(format.duration);
-        document.getElementById('bitrate').textContent = format.bitrate ? `${Math.round(format.bitrate / 1000)} kbps` : 'N/A';
-        document.getElementById('sampleRate').textContent = format.sampleRate ? `${format.sampleRate} Hz` : 'N/A';
+        document.getElementById('duration').textContent = this.formatDuration(metadata.duration);
+        document.getElementById('bitrate').textContent = metadata.bitrate ? `${Math.round(metadata.bitrate / 1000)} kbps` : 'N/A';
+        document.getElementById('sampleRate').textContent = metadata.sampleRate ? `${metadata.sampleRate} Hz` : 'N/A';
         
         // Show current artwork
-        this.displayCurrentArtwork(common.picture?.[0] || metadata.picture);
+        this.displayCurrentArtwork(metadata.picture);
         
         // Show metadata section
         document.getElementById('metadataSection').style.display = 'block';
