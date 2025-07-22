@@ -43,88 +43,98 @@
                 </div>
             </section>
 
-            <section class="file-list" id="fileListSection" style="display: none;">
-                <h2>Selected Files</h2>
-                <div id="fileList" class="file-items">
-                    <!-- File items will be dynamically added here -->
-                </div>
-            </section>
-
-            <section class="metadata-section" id="metadataSection" style="display: none;">
-                <h2>Current File Metadata</h2>
-                <div class="metadata-container">
-                    <div class="metadata-display">
-                        <div class="metadata-row">
-                            <label>Title:</label>
-                            <span id="currentTitle">-</span>
-                        </div>
-                        <div class="metadata-row">
-                            <label>Artist:</label>
-                            <span id="currentArtist">-</span>
-                        </div>
-                        <div class="metadata-row">
-                            <label>Album:</label>
-                            <span id="currentAlbum">-</span>
-                        </div>
-                        <div class="metadata-row">
-                            <label>Album Artist:</label>
-                            <span id="currentAlbumArtist">-</span>
-                        </div>
-                        <div class="metadata-row">
-                            <label>Year:</label>
-                            <span id="currentYear">-</span>
-                        </div>
-                        <div class="metadata-row">
-                            <label>Track:</label>
-                            <span id="currentTrack">-</span>
-                        </div>
-                        <div class="metadata-row">
-                            <label>Genre:</label>
-                            <span id="currentGenre">-</span>
-                        </div>
-                        <div class="technical-info">
-                            <h4>Technical Information</h4>
-                            <div class="metadata-row">
-                                <label>File Name:</label>
-                                <span id="fileName">-</span>
-                            </div>
-                            <div class="metadata-row">
-                                <label>File Size:</label>
-                                <span id="fileSize">-</span>
-                            </div>
-                            <div class="metadata-row">
-                                <label>Duration:</label>
-                                <span id="duration">-</span>
-                            </div>
-                            <div class="metadata-row">
-                                <label>Bitrate:</label>
-                                <span id="bitrate">-</span>
-                            </div>
-                            <div class="metadata-row">
-                                <label>Sample Rate:</label>
-                                <span id="sampleRate">-</span>
-                            </div>
+            <div class="content-layout" id="contentLayout" style="display: none;">
+                <aside class="song-sidebar">
+                    <div class="sidebar-header">
+                        <h3>Songs</h3>
+                        <div class="sidebar-controls">
+                            <span id="songCount" class="song-count">0 songs</span>
+                            <button id="clearAllBtn" class="clear-all-btn" title="Clear all songs">Clear All</button>
                         </div>
                     </div>
-                    <div class="artwork-preview">
-                        <h3>Current Artwork</h3>
-                        <div id="currentArtwork" class="artwork-container">
-                            <div class="no-artwork">No artwork available</div>
-                        </div>
+                    <div id="songList" class="song-list">
+                        <!-- Song items will be dynamically added here -->
                     </div>
-                </div>
-                <div class="action-buttons">
-                    <button class="btn btn-secondary" id="searchItunesBtn" disabled>Search iTunes</button>
-                    <button class="btn btn-primary" id="enrichMetadataBtn" disabled>Enrich Metadata</button>
-                </div>
-            </section>
+                </aside>
 
-            <section class="itunes-section" id="itunesSection" style="display: none;">
-                <h2>iTunes Search Results</h2>
-                <div id="itunesResults" class="itunes-results">
-                    <!-- iTunes results will be dynamically added here -->
+                <div class="main-panel">
+                    <section class="metadata-section" id="metadataSection">
+                        <h2>Current File Metadata</h2>
+                        <div class="metadata-container">
+                            <div class="metadata-display">
+                                <div class="metadata-row">
+                                    <label>Title:</label>
+                                    <span id="currentTitle">-</span>
+                                </div>
+                                <div class="metadata-row">
+                                    <label>Artist:</label>
+                                    <span id="currentArtist">-</span>
+                                </div>
+                                <div class="metadata-row">
+                                    <label>Album:</label>
+                                    <span id="currentAlbum">-</span>
+                                </div>
+                                <div class="metadata-row">
+                                    <label>Album Artist:</label>
+                                    <span id="currentAlbumArtist">-</span>
+                                </div>
+                                <div class="metadata-row">
+                                    <label>Year:</label>
+                                    <span id="currentYear">-</span>
+                                </div>
+                                <div class="metadata-row">
+                                    <label>Track:</label>
+                                    <span id="currentTrack">-</span>
+                                </div>
+                                <div class="metadata-row">
+                                    <label>Genre:</label>
+                                    <span id="currentGenre">-</span>
+                                </div>
+                                <div class="technical-info">
+                                    <h4>Technical Information</h4>
+                                    <div class="metadata-row">
+                                        <label>File Name:</label>
+                                        <span id="fileName">-</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <label>File Size:</label>
+                                        <span id="fileSize">-</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <label>Duration:</label>
+                                        <span id="duration">-</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <label>Bitrate:</label>
+                                        <span id="bitrate">-</span>
+                                    </div>
+                                    <div class="metadata-row">
+                                        <label>Sample Rate:</label>
+                                        <span id="sampleRate">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="artwork-preview">
+                                <h3>Current Artwork</h3>
+                                <div id="currentArtwork" class="artwork-container">
+                                    <div class="no-artwork">No artwork available</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" id="searchItunesBtn" disabled>Search iTunes</button>
+                            <button class="btn btn-primary" id="enrichMetadataBtn" disabled>Enrich Metadata</button>
+                        </div>
+                    </section>
+
+                    <section class="itunes-section" id="itunesSection" style="display: none;">
+                        <h2>iTunes Search Results</h2>
+                        <div id="itunesResults" class="itunes-results">
+                            <!-- iTunes results will be dynamically added here -->
+                        </div>
+                    </section>
                 </div>
-            </section>
+            </div>
         </main>
 
         <!-- Loading Indicator -->

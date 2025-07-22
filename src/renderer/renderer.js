@@ -58,6 +58,14 @@ class iTunesMetadataPuller {
                 this.enrichMetadata();
             });
         }
+
+        // Clear all songs button
+        const clearAllBtn = document.getElementById('clearAllBtn');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => {
+                this.clearAllSongs();
+            });
+        }
     }
 
     toggleTheme() {
@@ -239,84 +247,163 @@ class iTunesMetadataPuller {
     }
 
     updateFileList(filePaths, folderPath = null) {
-        const fileList = document.getElementById('fileList');
-        fileList.innerHTML = '';
+        const songList = document.getElementById('songList');
+        const songCount = document.getElementById('songCount');
+        const contentLayout = document.getElementById('contentLayout');
         
-        // Add folder info if files came from folder selection
-        if (folderPath) {
-            const folderInfo = document.createElement('div');
-            folderInfo.className = 'folder-info';
-            folderInfo.innerHTML = `
-                <div class="folder-icon">📁</div>
-                <div class="folder-details">
-                    <div class="folder-name">Folder: ${folderPath.split('\\').pop().split('/').pop()}</div>
-                    <div class="folder-path">${folderPath}</div>
-                    <div class="file-count">${filePaths.length} M4A file(s) found</div>
-                </div>
-            `;
-            fileList.appendChild(folderInfo);
-        }
+        songList.innerHTML = '';
+        
+        // Update song count
+        songCount.textContent = `${filePaths.length} song${filePaths.length !== 1 ? 's' : ''}`;
+        
+        // Show content layout and hide file selection
+        contentLayout.style.display = 'grid';
+        document.querySelector('.file-selection').style.display = 'none';
         
         filePaths.forEach((filePath, index) => {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.dataset.filePath = filePath; // Store full path for reference
-            if (index === 0) fileItem.classList.add('active');
+            const songItem = document.createElement('div');
+            songItem.className = 'song-item';
+            songItem.dataset.filePath = filePath; // Store full path for reference
+            if (index === 0) songItem.classList.add('active');
             
             const fileName = filePath.split('\\').pop().split('/').pop();
-            const relativePath = folderPath ? 
-                filePath.replace(folderPath, '').replace(/^[\\\/]/, '') : 
-                filePath;
             
-            // Start with default music icon, artwork will be loaded via prefetch
-            fileItem.innerHTML = `
-                <div class="file-icon">
-                    <div class="default-music-icon">🎵</div>
-                </div>
-                <div class="file-info">
-                    <div class="file-name">${fileName}</div>
-                    <div class="file-path">${relativePath}</div>
+            // Start with filename as title, will be updated when metadata loads
+            songItem.innerHTML = `
+                <button class="remove-song-btn" title="Remove song">×</button>
+                <div class="song-title">${fileName.replace(/\.[^/.]+$/, '')}</div>
+                <div class="song-details">
+                    <div class="song-artist">Loading...</div>
+                    <div class="song-year">-</div>
                 </div>
             `;
             
-            fileItem.addEventListener('click', () => {
+            // Add click handler for song selection (but not on remove button)
+            songItem.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-song-btn')) {
+                    return; // Don't select song when clicking remove button
+                }
                 // Remove active class from all items
-                document.querySelectorAll('.file-item').forEach(item => 
+                document.querySelectorAll('.song-item').forEach(item => 
                     item.classList.remove('active')
                 );
                 // Add active class to clicked item
-                fileItem.classList.add('active');
+                songItem.classList.add('active');
                 // Load metadata for this file
                 this.loadFileMetadata(filePath);
             });
             
-            fileList.appendChild(fileItem);
+            // Add remove button functionality
+            const removeBtn = songItem.querySelector('.remove-song-btn');
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent song selection
+                this.removeSongFromList(filePath);
+            });
+            
+            songList.appendChild(songItem);
         });
         
-        // Show file list section
-        document.getElementById('fileListSection').style.display = 'block';
+        // Load metadata for all songs to populate sidebar info
+        this.loadSongListMetadata(filePaths);
+    }
+
+    removeSongFromList(filePathToRemove) {
+        // Remove from selectedFiles array
+        this.selectedFiles = this.selectedFiles.filter(filePath => filePath !== filePathToRemove);
+        
+        // Check if the removed song was currently active
+        const wasActive = document.querySelector(`.song-item[data-file-path="${filePathToRemove}"]`)?.classList.contains('active');
+        
+        // If no songs left, show file selection again
+        if (this.selectedFiles.length === 0) {
+            this.clearResults();
+            this.showSuccess('All songs removed');
+            return;
+        }
+        
+        // Update the file list
+        this.updateFileList(this.selectedFiles);
+        
+        // If the removed song was active, select the first song
+        if (wasActive && this.selectedFiles.length > 0) {
+            this.loadFileMetadata(this.selectedFiles[0]);
+        }
+        
+        this.showSuccess('Song removed from list');
+    }
+
+    clearAllSongs() {
+        if (this.selectedFiles.length === 0) {
+            this.showWarning('No songs to clear');
+            return;
+        }
+        
+        // Clear all files
+        this.selectedFiles = [];
+        this.currentFile = null;
+        
+        // Show file selection and hide content
+        this.clearResults();
+        
+        this.showSuccess('All songs cleared');
+    }
+
+    async loadSongListMetadata(filePaths) {
+        for (const filePath of filePaths) {
+            try {
+                const result = await window.electronAPI.readMetadata(filePath);
+                if (result.success && result.metadata) {
+                    this.updateSongItemDisplay(filePath, result.metadata);
+                }
+            } catch (error) {
+                console.log(`Failed to load metadata for sidebar: ${filePath}`, error);
+            }
+        }
+    }
+
+    updateSongItemDisplay(filePath, metadata) {
+        const songItems = document.querySelectorAll('.song-item');
+        songItems.forEach(item => {
+            if (item.dataset.filePath === filePath) {
+                const title = metadata.common?.title || filePath.split('\\').pop().split('/').pop().replace(/\.[^/.]+$/, '');
+                const artist = metadata.common?.artist || 'Unknown Artist';
+                const year = metadata.common?.year || '-';
+                
+                const titleElement = item.querySelector('.song-title');
+                const artistElement = item.querySelector('.song-artist');
+                const yearElement = item.querySelector('.song-year');
+                
+                if (titleElement) titleElement.textContent = title;
+                if (artistElement) artistElement.textContent = artist;
+                if (yearElement) yearElement.textContent = year;
+            }
+        });
     }
 
     displayMetadata(metadata) {
-        // Update current metadata display
-        document.getElementById('currentTitle').textContent = metadata.title;
-        document.getElementById('currentArtist').textContent = metadata.artist;
-        document.getElementById('currentAlbum').textContent = metadata.album;
-        document.getElementById('currentAlbumArtist').textContent = metadata.albumartist;
-        document.getElementById('currentYear').textContent = metadata.date;
+        // Update current metadata display using music-metadata format
+        const common = metadata.common || {};
+        const format = metadata.format || {};
+        
+        document.getElementById('currentTitle').textContent = common.title || 'Unknown Title';
+        document.getElementById('currentArtist').textContent = common.artist || 'Unknown Artist';
+        document.getElementById('currentAlbum').textContent = common.album || 'Unknown Album';
+        document.getElementById('currentAlbumArtist').textContent = common.albumartist || common.artist || 'Unknown Album Artist';
+        document.getElementById('currentYear').textContent = common.year || common.date || 'Unknown Year';
         document.getElementById('currentTrack').textContent = 
-            metadata.track.no ? `${metadata.track.no}${metadata.track.of ? ` of ${metadata.track.of}` : ''}` : 'N/A';
-        document.getElementById('currentGenre').textContent = metadata.genre;
+            common.track?.no ? `${common.track.no}${common.track.of ? ` of ${common.track.of}` : ''}` : 'N/A';
+        document.getElementById('currentGenre').textContent = 
+            Array.isArray(common.genre) ? common.genre.join(', ') : (common.genre || 'Unknown Genre');
         
         // Update technical info
-        document.getElementById('fileName').textContent = metadata.fileName;
-        document.getElementById('fileSize').textContent = this.formatFileSize(metadata.fileSize);
-        document.getElementById('duration').textContent = this.formatDuration(metadata.duration);
-        document.getElementById('bitrate').textContent = metadata.bitrate ? `${metadata.bitrate} kbps` : 'N/A';
-        document.getElementById('sampleRate').textContent = metadata.sampleRate ? `${metadata.sampleRate} Hz` : 'N/A';
+        document.getElementById('fileName').textContent = metadata.fileName || 'Unknown File';
+        document.getElementById('fileSize').textContent = this.formatFileSize(metadata.fileSize || 0);
+        document.getElementById('duration').textContent = this.formatDuration(format.duration);
+        document.getElementById('bitrate').textContent = format.bitrate ? `${Math.round(format.bitrate / 1000)} kbps` : 'N/A';
+        document.getElementById('sampleRate').textContent = format.sampleRate ? `${format.sampleRate} Hz` : 'N/A';
         
         // Show current artwork
-        this.displayCurrentArtwork(metadata.picture);
+        this.displayCurrentArtwork(common.picture?.[0] || metadata.picture);
         
         // Show metadata section
         document.getElementById('metadataSection').style.display = 'block';
@@ -355,12 +442,16 @@ class iTunesMetadataPuller {
     }
 
     clearResults() {
-        // Clear file list
-        const fileList = document.getElementById('fileList');
-        if (fileList) fileList.innerHTML = '';
+        // Hide content layout and show file selection
+        const contentLayout = document.getElementById('contentLayout');
+        if (contentLayout) contentLayout.style.display = 'none';
         
-        const fileListSection = document.getElementById('fileListSection');
-        if (fileListSection) fileListSection.style.display = 'none';
+        const fileSelection = document.querySelector('.file-selection');
+        if (fileSelection) fileSelection.style.display = 'block';
+        
+        // Clear song list
+        const songList = document.getElementById('songList');
+        if (songList) songList.innerHTML = '';
         
         // Clear metadata
         const metadataSection = document.getElementById('metadataSection');

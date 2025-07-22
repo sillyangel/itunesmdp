@@ -82,7 +82,7 @@ body {
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--glass-border);
-  padding: clamp(12px, 2vw, 24px);
+  padding: clamp(8px, 1.5vw, 16px);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -98,15 +98,15 @@ body {
 
 .header-left h1 {
   color: var(--text-primary);
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: clamp(2px, 0.5vw, 4px);
 }
 
 .subtitle {
   color: var(--text-secondary);
-  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  font-size: clamp(0.8rem, 1.5vw, 1rem);
   font-weight: 400;
 }
 
@@ -132,7 +132,7 @@ body {
 /* Main Content */
 .main-content {
   flex: 1;
-  padding: clamp(16px, 4vw, 48px);
+  padding: clamp(8px, 2vw, 24px);
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
@@ -403,12 +403,181 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Content Layout */
+.content-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: clamp(12px, 2vw, 16px);
+  height: calc(100vh - 120px);
+  margin-top: clamp(12px, 2vw, 16px);
+}
+
+/* Song Sidebar */
+.song-sidebar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: clamp(12px, 2vw, 16px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: clamp(12px, 2vw, 16px);
+  padding-bottom: clamp(8px, 1.5vw, 12px);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h3 {
+  color: var(--text-primary);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-weight: 600;
+  margin: 0;
+}
+
+.sidebar-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: clamp(4px, 1vw, 8px);
+}
+
+.song-count {
+  color: var(--text-secondary);
+  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-weight: 500;
+}
+
+.clear-all-btn {
+  background: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 12px);
+  font-size: clamp(0.7rem, 1.2vw, 0.8rem);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-all-btn:hover {
+  background: #d63031;
+  transform: scale(1.05);
+}
+
+.song-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.song-item {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(8px, 1.5vw, 12px);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid transparent;
+  margin-bottom: clamp(4px, 1vw, 6px);
+  position: relative;
+}
+
+.song-item:hover {
+  background: var(--bg-tertiary);
+  border-bottom-color: var(--border-color);
+}
+
+.song-item:hover .remove-song-btn {
+  opacity: 1;
+}
+
+.song-item.active {
+  background: var(--accent-color);
+  color: white;
+}
+
+.song-item.active .song-artist,
+.song-item.active .song-year {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.remove-song-btn {
+  position: absolute;
+  top: clamp(4px, 1vw, 8px);
+  right: clamp(4px, 1vw, 8px);
+  background: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: clamp(16px, 3vw, 20px);
+  height: clamp(16px, 3vw, 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  font-size: clamp(8px, 1.5vw, 12px);
+  z-index: 10;
+}
+
+.remove-song-btn:hover {
+  background: #d63031;
+  transform: scale(1.1);
+}
+
+.song-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: clamp(0.85rem, 1.5vw, 0.95rem);
+  margin-bottom: clamp(2px, 0.5vw, 4px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: clamp(6px, 1vw, 8px);
+}
+
+.song-artist {
+  color: var(--text-secondary);
+  font-size: clamp(0.75rem, 1.2vw, 0.85rem);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.song-year {
+  color: var(--text-secondary);
+  font-size: clamp(0.75rem, 1.2vw, 0.85rem);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* Main Panel */
+.main-panel {
+  overflow-y: auto;
+  padding-right: clamp(4px, 1vw, 8px);
+}
+
 /* Metadata Section */
 .metadata-container {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: clamp(16px, 3vw, 32px);
-  margin-bottom: clamp(12px, 2vw, 24px);
+  gap: clamp(12px, 2vw, 20px);
+  margin-bottom: clamp(8px, 1.5vw, 16px);
 }
 
 .metadata-display {
@@ -417,7 +586,7 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: clamp(16px, 3vw, 32px);
+  padding: clamp(12px, 2vw, 20px);
 }
 
 .metadata-row {
@@ -470,7 +639,7 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: clamp(16px, 3vw, 32px);
+  padding: clamp(12px, 2vw, 20px);
 }
 
 .artwork-preview h3 {
@@ -785,16 +954,39 @@ body {
 /* Mobile Responsive Breakpoints */
 @media (max-width: 768px) {
   .container {
-    padding: clamp(12px, 3vw, 20px);
+    padding: clamp(8px, 2vw, 16px);
+  }
+  
+  .content-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    height: auto;
+    gap: clamp(8px, 2vw, 12px);
+  }
+  
+  .song-sidebar {
+    max-height: 180px;
+    margin-bottom: clamp(8px, 2vw, 12px);
+  }
+  
+  .sidebar-controls {
+    flex-direction: row;
+    align-items: center;
+    gap: clamp(8px, 2vw, 12px);
+  }
+  
+  .clear-all-btn {
+    font-size: clamp(0.6rem, 1vw, 0.7rem);
+    padding: clamp(2px, 0.5vw, 4px) clamp(6px, 1vw, 8px);
   }
   
   .metadata-container {
     grid-template-columns: 1fr;
-    gap: clamp(12px, 3vw, 20px);
+    gap: clamp(8px, 2vw, 16px);
   }
   
   .header {
-    padding: clamp(12px, 3vw, 16px) clamp(16px, 4vw, 24px);
+    padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
   }
   
   .controls {
