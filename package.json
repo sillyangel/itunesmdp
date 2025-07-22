@@ -1,0 +1,49 @@
+{
+  "name": "itunesmdp",
+  "version": "1.0.0",
+  "description": "Metadata puller using iTunes API for .m4a files",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "electron",
+    "metadata",
+    "itunes",
+    "m4a",
+    "music"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "music-metadata": "^8.1.4",
+    "axios": "^1.6.2"
+  },
+  "build": {
+    "appId": "com.example.itunesmdp",
+    "productName": "iTunes Metadata Puller",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.music"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
