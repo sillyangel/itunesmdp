@@ -8,8 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // File operations
   selectFiles: () => ipcRenderer.invoke('select-files'),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
   readMetadata: (filePath) => ipcRenderer.invoke('read-metadata', filePath),
-  validateDroppedFiles: (filePaths) => ipcRenderer.invoke('validate-dropped-files', filePaths),
   
   // iTunes API operations (will be added later)
   // searchItunes: (query) => ipcRenderer.invoke('search-itunes', query),

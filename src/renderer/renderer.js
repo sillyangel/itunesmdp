@@ -37,27 +37,10 @@ class iTunesMetadataPuller {
             this.selectFiles();
         });
 
-        // Drop zone events
-        const dropZone = document.getElementById('dropZone');
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            this.handleFileDrop(e);
-        });
-
-        dropZone.addEventListener('click', () => {
-            this.selectFiles();
+        // Folder selection button
+        const selectFolderBtn = document.getElementById('selectFolderBtn');
+        selectFolderBtn.addEventListener('click', () => {
+            this.selectFolder();
         });
 
         // Metadata action buttons
@@ -120,64 +103,125 @@ class iTunesMetadataPuller {
         }
     }
 
-    async handleFileDrop(event) {
+    async selectFolder() {
         try {
-            this.showLoading('Processing dropped files...');
+            this.showLoading('Scanning folder for M4A files...');
+            console.log('Calling electronAPI.selectFolder()');
             
-            const files = Array.from(event.dataTransfer.files);
-            const filePaths = files.map(file => file.path);
+            const result = await window.electronAPI.selectFolder();
+            console.log('Folder selection result:', result);
             
-            console.log('Dropped files:', filePaths);
-            
-            // Validate dropped files
-            const result = await window.electronAPI.validateDroppedFiles(filePaths);
-            
-            if (result.success) {
-                if (result.validFiles.length > 0) {
-                    this.selectedFiles = result.validFiles;
-                    await this.processSelectedFiles(result.validFiles);
-                    
-                    // Show warnings for invalid files
-                    if (result.errors.length > 0) {
-                        const invalidCount = result.errors.length;
-                        this.showWarning(`${invalidCount} file(s) were skipped (not .m4a files)`);
-                    }
-                } else {
-                    this.showError('No valid .m4a files found in the dropped files');
-                }
+            if (result.success && result.files.length > 0) {
+                this.selectedFiles = result.files;
+                await this.processSelectedFiles(result.files, result.folderPath);
+                this.showSuccess(`Found ${result.files.length} M4A file(s) in folder`);
+            } else if (result.error) {
+                this.showError(`Failed to scan folder: ${result.error}`);
+            } else if (result.success && result.files.length === 0) {
+                this.showWarning('No M4A files found in the selected folder');
             } else {
-                this.showError(`Failed to process dropped files: ${result.error}`);
+                console.log('No folder selected');
             }
         } catch (error) {
-            console.error('Failed to handle dropped files:', error);
-            this.showError('Failed to process dropped files. Please try again.');
+            console.error('Failed to select folder:', error);
+            this.showError('Failed to scan folder. Please try again.');
         } finally {
             this.hideLoading();
         }
     }
 
-    async processSelectedFiles(filePaths) {
+    async processSelectedFiles(filePaths, folderPath = null) {
         try {
             this.clearResults();
-            this.updateFileList(filePaths);
+            this.updateFileList(filePaths, folderPath);
+            
+            // Prefetch artwork for all files
+            this.prefetchArtwork(filePaths);
             
             // Process first file automatically
             if (filePaths.length > 0) {
                 await this.loadFileMetadata(filePaths[0]);
             }
             
-            this.showSuccess(`Loaded ${filePaths.length} file(s)`);
+            const source = folderPath ? `folder: ${folderPath}` : 'selected files';
+            this.showSuccess(`Loaded ${filePaths.length} file(s) from ${source}`);
         } catch (error) {
             console.error('Error processing selected files:', error);
             this.showError('Failed to process selected files');
         }
     }
 
+    async prefetchArtwork(filePaths) {
+        // Prefetch artwork for up to 50 files to avoid overwhelming the system
+        const filesToPrefetch = filePaths.slice(0, 50);
+        
+        for (const filePath of filesToPrefetch) {
+            try {
+                const result = await window.electronAPI.readMetadata(filePath);
+                if (result.success && result.metadata.picture) {
+                    // Store artwork data for quick access
+                    this.cacheArtwork(filePath, result.metadata.picture);
+                    // Update the file item icon
+                    this.updateFileItemArtwork(filePath, result.metadata.picture);
+                }
+            } catch (error) {
+                console.log(`Failed to prefetch artwork for ${filePath}:`, error);
+            }
+        }
+    }
+
+    cacheArtwork(filePath, picture) {
+        if (!this.artworkCache) {
+            this.artworkCache = new Map();
+        }
+        this.artworkCache.set(filePath, picture);
+    }
+
+    getArtworkFromCache(filePath) {
+        if (!this.artworkCache) {
+            return null;
+        }
+        return this.artworkCache.get(filePath);
+    }
+
+    updateFileItemArtwork(filePath, picture) {
+        const fileItems = document.querySelectorAll('.file-item');
+        fileItems.forEach(item => {
+            const storedPath = item.dataset.filePath;
+            if (storedPath === filePath) {
+                const iconElement = item.querySelector('.file-icon');
+                if (iconElement && picture && picture.data) {
+                    const blob = new Blob([picture.data], { type: picture.format });
+                    const url = URL.createObjectURL(blob);
+                    iconElement.innerHTML = `<img src="${url}" alt="Album Art" class="file-artwork">`;
+                } else if (iconElement) {
+                    // Keep default icon if no artwork
+                    iconElement.innerHTML = `<div class="default-music-icon">🎵</div>`;
+                }
+            }
+        });
+    }
+
     async loadFileMetadata(filePath) {
         try {
             this.showLoading('Reading metadata...');
             
-            const result = await window.electronAPI.readMetadata(filePath);
+            // Check cache first
+            const cachedArtwork = this.getArtworkFromCache(filePath);
+            let result;
+            
+            if (cachedArtwork) {
+                // Use cached data if available, but still need to read full metadata
+                result = await window.electronAPI.readMetadata(filePath);
+                if (result.success) {
+                    result.metadata.picture = cachedArtwork;
+                }
+            } else {
+                result = await window.electronAPI.readMetadata(filePath);
+                if (result.success && result.metadata.picture) {
+                    this.cacheArtwork(filePath, result.metadata.picture);
+                }
+            }
             
             if (result.success) {
                 this.currentFile = result.metadata;
@@ -194,21 +238,44 @@ class iTunesMetadataPuller {
         }
     }
 
-    updateFileList(filePaths) {
+    updateFileList(filePaths, folderPath = null) {
         const fileList = document.getElementById('fileList');
         fileList.innerHTML = '';
+        
+        // Add folder info if files came from folder selection
+        if (folderPath) {
+            const folderInfo = document.createElement('div');
+            folderInfo.className = 'folder-info';
+            folderInfo.innerHTML = `
+                <div class="folder-icon">📁</div>
+                <div class="folder-details">
+                    <div class="folder-name">Folder: ${folderPath.split('\\').pop().split('/').pop()}</div>
+                    <div class="folder-path">${folderPath}</div>
+                    <div class="file-count">${filePaths.length} M4A file(s) found</div>
+                </div>
+            `;
+            fileList.appendChild(folderInfo);
+        }
         
         filePaths.forEach((filePath, index) => {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
+            fileItem.dataset.filePath = filePath; // Store full path for reference
             if (index === 0) fileItem.classList.add('active');
             
             const fileName = filePath.split('\\').pop().split('/').pop();
+            const relativePath = folderPath ? 
+                filePath.replace(folderPath, '').replace(/^[\\\/]/, '') : 
+                filePath;
+            
+            // Start with default music icon, artwork will be loaded via prefetch
             fileItem.innerHTML = `
-                <div class="file-icon">🎵</div>
+                <div class="file-icon">
+                    <div class="default-music-icon">🎵</div>
+                </div>
                 <div class="file-info">
                     <div class="file-name">${fileName}</div>
-                    <div class="file-path">${filePath}</div>
+                    <div class="file-path">${relativePath}</div>
                 </div>
             `;
             

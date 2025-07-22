@@ -205,47 +205,7 @@ ipcMain.handle('read-metadata', async (event, filePath) => {
   }
 });
 
-// Drag and drop file validation handler
-ipcMain.handle('validate-dropped-files', async (event, filePaths) => {
-  try {
-    const validFiles = [];
-    const errors = [];
-
-    for (const filePath of filePaths) {
-      try {
-        // Check if file exists
-        await fs.access(filePath);
-        
-        // Check if file is .m4a
-        const ext = path.extname(filePath).toLowerCase();
-        if (ext === '.m4a') {
-          validFiles.push(filePath);
-        } else {
-          errors.push({
-            filePath: filePath,
-            error: 'File is not a .m4a file'
-          });
-        }
-      } catch (error) {
-        errors.push({
-          filePath: filePath,
-          error: 'File not accessible'
-        });
-      }
-    }
-
-    return { 
-      success: true, 
-      validFiles: validFiles,
-      errors: errors 
-    };
-  } catch (error) {
-    console.error('Error validating dropped files:', error);
-    return { 
-      success: false, 
-      error: error.message,
-      validFiles: [],
-      errors: []
-    };
-  }
-});
+// Drag and drop file validation handler (removed - no longer needed)
+// ipcMain.handle('validate-dropped-files', async (event, filePaths) => {
+//   // This functionality has been removed in favor of file/folder selection
+// });
