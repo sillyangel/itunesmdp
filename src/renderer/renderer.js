@@ -3,10 +3,15 @@ class iTunesMetadataPuller {
     constructor() {
         this.selectedFiles = [];
         this.currentFile = null;
+        this.isDarkMode = false;
         this.init();
     }
 
     async init() {
+        // Check for saved theme preference
+        this.isDarkMode = localStorage.getItem('darkMode') === 'true';
+        this.applyTheme();
+        
         // Set up event listeners
         this.setupEventListeners();
         
@@ -20,6 +25,12 @@ class iTunesMetadataPuller {
     }
 
     setupEventListeners() {
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', () => {
+            this.toggleTheme();
+        });
+
         // File selection button
         const selectFilesBtn = document.getElementById('selectFilesBtn');
         selectFilesBtn.addEventListener('click', () => {
@@ -49,209 +60,333 @@ class iTunesMetadataPuller {
             this.selectFiles();
         });
 
-        // Metadata action buttons (will be implemented later)
+        // Metadata action buttons
         const searchItunesBtn = document.getElementById('searchItunesBtn');
         const enrichMetadataBtn = document.getElementById('enrichMetadataBtn');
         
-        searchItunesBtn.addEventListener('click', () => {
-            this.searchItunes();
-        });
+        if (searchItunesBtn) {
+            searchItunesBtn.addEventListener('click', () => {
+                this.searchItunes();
+            });
+        }
 
-        enrichMetadataBtn.addEventListener('click', () => {
-            this.enrichMetadata();
-        });
+        if (enrichMetadataBtn) {
+            enrichMetadataBtn.addEventListener('click', () => {
+                this.enrichMetadata();
+            });
+        }
+    }
+
+    toggleTheme() {
+        this.isDarkMode = !this.isDarkMode;
+        localStorage.setItem('darkMode', this.isDarkMode.toString());
+        this.applyTheme();
+    }
+
+    applyTheme() {
+        const body = document.body;
+        const themeIcon = document.getElementById('themeIcon');
+        
+        if (this.isDarkMode) {
+            body.classList.add('dark-mode');
+            themeIcon.innerHTML = '☀️';
+        } else {
+            body.classList.remove('dark-mode');
+            themeIcon.innerHTML = '🌙';
+        }
     }
 
     async selectFiles() {
         try {
-            // This will be implemented when we add the IPC handler
-            console.log('File selection will be implemented in the next feature');
-            // const files = await window.electronAPI.selectFiles();
-            // this.handleSelectedFiles(files);
+            this.showLoading('Selecting files...');
+            console.log('Calling electronAPI.selectFiles()');
+            
+            const result = await window.electronAPI.selectFiles();
+            console.log('File selection result:', result);
+            
+            if (result.success && result.files.length > 0) {
+                this.selectedFiles = result.files;
+                await this.processSelectedFiles(result.files);
+            } else if (result.error) {
+                this.showError(`Failed to select files: ${result.error}`);
+            } else {
+                console.log('No files selected');
+            }
         } catch (error) {
             console.error('Failed to select files:', error);
+            this.showError('Failed to select files. Please try again.');
+        } finally {
+            this.hideLoading();
         }
     }
 
-    handleFileDrop(event) {
-        const files = Array.from(event.dataTransfer.files);
-        const m4aFiles = files.filter(file => 
-            file.name.toLowerCase().endsWith('.m4a') || 
-            file.type === 'audio/mp4'
-        );
-        
-        if (m4aFiles.length > 0) {
-            console.log('Dropped files:', m4aFiles);
-            // File processing will be implemented in the next feature
-        } else {
-            this.showNotification('Please drop .m4a files only', 'warning');
+    async handleFileDrop(event) {
+        try {
+            this.showLoading('Processing dropped files...');
+            
+            const files = Array.from(event.dataTransfer.files);
+            const filePaths = files.map(file => file.path);
+            
+            console.log('Dropped files:', filePaths);
+            
+            // Validate dropped files
+            const result = await window.electronAPI.validateDroppedFiles(filePaths);
+            
+            if (result.success) {
+                if (result.validFiles.length > 0) {
+                    this.selectedFiles = result.validFiles;
+                    await this.processSelectedFiles(result.validFiles);
+                    
+                    // Show warnings for invalid files
+                    if (result.errors.length > 0) {
+                        const invalidCount = result.errors.length;
+                        this.showWarning(`${invalidCount} file(s) were skipped (not .m4a files)`);
+                    }
+                } else {
+                    this.showError('No valid .m4a files found in the dropped files');
+                }
+            } else {
+                this.showError(`Failed to process dropped files: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to handle dropped files:', error);
+            this.showError('Failed to process dropped files. Please try again.');
+        } finally {
+            this.hideLoading();
         }
     }
 
-    handleSelectedFiles(files) {
-        this.selectedFiles = files;
-        this.updateFileList();
-        this.showFileListSection();
+    async processSelectedFiles(filePaths) {
+        try {
+            this.clearResults();
+            this.updateFileList(filePaths);
+            
+            // Process first file automatically
+            if (filePaths.length > 0) {
+                await this.loadFileMetadata(filePaths[0]);
+            }
+            
+            this.showSuccess(`Loaded ${filePaths.length} file(s)`);
+        } catch (error) {
+            console.error('Error processing selected files:', error);
+            this.showError('Failed to process selected files');
+        }
     }
 
-    updateFileList() {
+    async loadFileMetadata(filePath) {
+        try {
+            this.showLoading('Reading metadata...');
+            
+            const result = await window.electronAPI.readMetadata(filePath);
+            
+            if (result.success) {
+                this.currentFile = result.metadata;
+                this.displayMetadata(result.metadata);
+                this.showSuccess('Metadata loaded successfully');
+            } else {
+                this.showError(`Failed to read metadata: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to load metadata:', error);
+            this.showError('Failed to load file metadata');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    updateFileList(filePaths) {
         const fileList = document.getElementById('fileList');
         fileList.innerHTML = '';
-
-        this.selectedFiles.forEach((file, index) => {
+        
+        filePaths.forEach((filePath, index) => {
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
+            if (index === 0) fileItem.classList.add('active');
+            
+            const fileName = filePath.split('\\').pop().split('/').pop();
             fileItem.innerHTML = `
-                <div class="file-name">${file.name}</div>
-                <div class="file-path">${file.path}</div>
+                <div class="file-icon">🎵</div>
+                <div class="file-info">
+                    <div class="file-name">${fileName}</div>
+                    <div class="file-path">${filePath}</div>
+                </div>
             `;
             
             fileItem.addEventListener('click', () => {
-                this.selectFile(index);
+                // Remove active class from all items
+                document.querySelectorAll('.file-item').forEach(item => 
+                    item.classList.remove('active')
+                );
+                // Add active class to clicked item
+                fileItem.classList.add('active');
+                // Load metadata for this file
+                this.loadFileMetadata(filePath);
             });
             
             fileList.appendChild(fileItem);
         });
-    }
-
-    showFileListSection() {
+        
+        // Show file list section
         document.getElementById('fileListSection').style.display = 'block';
     }
 
-    selectFile(index) {
-        this.currentFile = this.selectedFiles[index];
-        console.log('Selected file:', this.currentFile);
+    displayMetadata(metadata) {
+        // Update current metadata display
+        document.getElementById('currentTitle').textContent = metadata.title;
+        document.getElementById('currentArtist').textContent = metadata.artist;
+        document.getElementById('currentAlbum').textContent = metadata.album;
+        document.getElementById('currentAlbumArtist').textContent = metadata.albumartist;
+        document.getElementById('currentYear').textContent = metadata.date;
+        document.getElementById('currentTrack').textContent = 
+            metadata.track.no ? `${metadata.track.no}${metadata.track.of ? ` of ${metadata.track.of}` : ''}` : 'N/A';
+        document.getElementById('currentGenre').textContent = metadata.genre;
         
-        // Highlight selected file
-        const fileItems = document.querySelectorAll('.file-item');
-        fileItems.forEach((item, i) => {
-            if (i === index) {
-                item.style.background = 'rgba(102, 126, 234, 0.1)';
-                item.style.borderLeft = '4px solid #667eea';
-            } else {
-                item.style.background = 'rgba(255, 255, 255, 0.95)';
-                item.style.borderLeft = 'none';
-            }
-        });
-
-        // Show metadata section and load metadata (will be implemented)
-        this.showMetadataSection();
-        this.loadFileMetadata();
-    }
-
-    showMetadataSection() {
+        // Update technical info
+        document.getElementById('fileName').textContent = metadata.fileName;
+        document.getElementById('fileSize').textContent = this.formatFileSize(metadata.fileSize);
+        document.getElementById('duration').textContent = this.formatDuration(metadata.duration);
+        document.getElementById('bitrate').textContent = metadata.bitrate ? `${metadata.bitrate} kbps` : 'N/A';
+        document.getElementById('sampleRate').textContent = metadata.sampleRate ? `${metadata.sampleRate} Hz` : 'N/A';
+        
+        // Show current artwork
+        this.displayCurrentArtwork(metadata.picture);
+        
+        // Show metadata section
         document.getElementById('metadataSection').style.display = 'block';
-    }
-
-    async loadFileMetadata() {
-        if (!this.currentFile) return;
-
-        try {
-            console.log('Loading metadata for:', this.currentFile.path);
-            // Metadata reading will be implemented in the next feature
-            // const metadata = await window.electronAPI.readMetadata(this.currentFile.path);
-            // this.populateMetadataForm(metadata);
-        } catch (error) {
-            console.error('Failed to load metadata:', error);
-            this.showNotification('Failed to load file metadata', 'error');
+        
+        // Enable iTunes search button
+        if (document.getElementById('searchItunesBtn')) {
+            document.getElementById('searchItunesBtn').disabled = false;
         }
     }
 
-    populateMetadataForm(metadata) {
-        document.getElementById('title').value = metadata.title || '';
-        document.getElementById('artist').value = metadata.artist || '';
-        document.getElementById('album').value = metadata.album || '';
+    displayCurrentArtwork(picture) {
+        const currentArtwork = document.getElementById('currentArtwork');
         
-        // Display artwork if available
-        if (metadata.artwork) {
-            this.displayArtwork(metadata.artwork);
-        }
-    }
-
-    displayArtwork(artworkData) {
-        const artworkContainer = document.getElementById('artworkContainer');
-        
-        if (artworkData) {
-            const img = document.createElement('img');
-            img.className = 'artwork-image';
-            img.src = `data:${artworkData.format};base64,${artworkData.data}`;
-            artworkContainer.innerHTML = '';
-            artworkContainer.appendChild(img);
+        if (picture && picture.data) {
+            const blob = new Blob([picture.data], { type: picture.format });
+            const url = URL.createObjectURL(blob);
+            currentArtwork.innerHTML = `<img src="${url}" alt="Current Artwork" class="artwork-image">`;
         } else {
-            artworkContainer.innerHTML = '<div class="no-artwork">No artwork available</div>';
+            currentArtwork.innerHTML = '<div class="no-artwork">No artwork found</div>';
         }
     }
 
-    async searchItunes() {
-        const title = document.getElementById('title').value;
-        const artist = document.getElementById('artist').value;
-        const album = document.getElementById('album').value;
-        const collectionId = document.getElementById('collectionId').value;
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
-        try {
-            console.log('Searching iTunes...');
-            // iTunes search will be implemented in a future feature
-            this.showNotification('iTunes search will be implemented in the next feature', 'info');
-        } catch (error) {
-            console.error('iTunes search failed:', error);
-            this.showNotification('iTunes search failed', 'error');
-        }
+    formatDuration(seconds) {
+        if (!seconds) return 'N/A';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    clearResults() {
+        // Clear file list
+        const fileList = document.getElementById('fileList');
+        if (fileList) fileList.innerHTML = '';
+        
+        const fileListSection = document.getElementById('fileListSection');
+        if (fileListSection) fileListSection.style.display = 'none';
+        
+        // Clear metadata
+        const metadataSection = document.getElementById('metadataSection');
+        if (metadataSection) metadataSection.style.display = 'none';
+        
+        // Clear iTunes results
+        const itunesResults = document.getElementById('itunesResults');
+        if (itunesResults) itunesResults.innerHTML = '';
+        
+        const itunesSection = document.getElementById('itunesSection');
+        if (itunesSection) itunesSection.style.display = 'none';
+        
+        // Disable action buttons
+        const searchItunesBtn = document.getElementById('searchItunesBtn');
+        if (searchItunesBtn) searchItunesBtn.disabled = true;
+        
+        const enrichMetadataBtn = document.getElementById('enrichMetadataBtn');
+        if (enrichMetadataBtn) enrichMetadataBtn.disabled = true;
+        
+        // Clear current file
+        this.currentFile = null;
+    }
+
+    // Placeholder methods for iTunes functionality (Feature 3)
+    async searchItunes() {
+        console.log('iTunes search will be implemented in Feature 3');
+        this.showInfo('iTunes search functionality will be available in the next feature');
     }
 
     async enrichMetadata() {
-        try {
-            console.log('Enriching metadata...');
-            // Metadata enrichment will be implemented in a future feature
-            this.showNotification('Metadata enrichment will be implemented in the next feature', 'info');
-        } catch (error) {
-            console.error('Metadata enrichment failed:', error);
-            this.showNotification('Metadata enrichment failed', 'error');
+        console.log('Metadata enrichment will be implemented in Feature 4');
+        this.showInfo('Metadata enrichment functionality will be available in a future feature');
+    }
+
+    // UI Helper methods
+    showLoading(message = 'Loading...') {
+        const loadingEl = document.getElementById('loadingIndicator');
+        const messageEl = document.getElementById('loadingMessage');
+        if (loadingEl && messageEl) {
+            messageEl.textContent = message;
+            loadingEl.style.display = 'flex';
+        }
+    }
+
+    hideLoading() {
+        const loadingEl = document.getElementById('loadingIndicator');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
         }
     }
 
     showNotification(message, type = 'info') {
-        // Simple notification system - can be enhanced later
+        // Create notification element
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            background: ${type === 'error' ? '#e53e3e' : type === 'warning' ? '#d69e2e' : '#3182ce'};
-            color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            animation: slideIn 0.3s ease;
+        notification.innerHTML = `
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
         `;
-
-        document.body.appendChild(notification);
-
+        
+        // Add to notifications container
+        const container = document.getElementById('notifications');
+        if (container) {
+            container.appendChild(notification);
+        }
+        
+        // Auto-remove after 5 seconds
         setTimeout(() => {
-            notification.remove();
-        }, 3000);
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    showSuccess(message) {
+        this.showNotification(message, 'success');
+    }
+
+    showError(message) {
+        this.showNotification(message, 'error');
+    }
+
+    showWarning(message) {
+        this.showNotification(message, 'warning');
+    }
+
+    showInfo(message) {
+        this.showNotification(message, 'info');
     }
 }
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing app...');
     new iTunesMetadataPuller();
 });
-
-// Add CSS animation for notifications
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-`;
-document.head.appendChild(style);
