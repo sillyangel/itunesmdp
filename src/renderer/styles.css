@@ -675,6 +675,185 @@ body {
   background: var(--bg-tertiary);
 }
 
+/* iTunes Section */
+.itunes-section {
+  margin-top: 24px;
+  margin-bottom: 16px;
+}
+
+.itunes-section h2 {
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.itunes-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itunes-result {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.itunes-result:hover {
+  border-color: var(--accent-color);
+  background: var(--bg-tertiary);
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.result-artwork {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-artwork-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.no-artwork-placeholder {
+  font-size: 24px;
+  color: var(--text-secondary);
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 16px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-artist {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-album {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.match-score {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+}
+
+.apply-itunes-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  min-width: 100px;
+}
+
+.result-details {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.itunes-tags {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.tag-group h4 {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.tag-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tag-item:last-child {
+  border-bottom: none;
+}
+
+.tag-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 12px;
+  min-width: 100px;
+}
+
+.tag-value {
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: right;
+  flex: 1;
+  margin-left: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-results {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 24px;
+}
+
 /* Notifications */
 #notifications {
   position: fixed;

@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   readMetadata: (filePath) => ipcRenderer.invoke('read-metadata', filePath),
   
-  // iTunes API operations (will be added later)
-  // searchItunes: (query) => ipcRenderer.invoke('search-itunes', query),
-  // getByCollectionId: (collectionId) => ipcRenderer.invoke('get-by-collection-id', collectionId),
+  // iTunes API operations
+  searchItunes: (searchParams) => ipcRenderer.invoke('search-itunes', searchParams),
+  enrichMetadata: (originalMetadata, itunesData) => ipcRenderer.invoke('enrich-metadata', originalMetadata, itunesData),
+  writeMetadata: (filePath, enrichedMetadata) => ipcRenderer.invoke('write-metadata', filePath, enrichedMetadata),
 });

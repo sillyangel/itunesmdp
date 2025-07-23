@@ -471,15 +471,213 @@ class iTunesMetadataPuller {
         this.currentFile = null;
     }
 
-    // Placeholder methods for iTunes functionality (Feature 3)
+    // iTunes search functionality
     async searchItunes() {
-        console.log('iTunes search will be implemented in Feature 3');
-        this.showInfo('iTunes search functionality will be available in the next feature');
+        if (!this.currentFile) {
+            this.showError('No file selected. Please select a file first.');
+            return;
+        }
+
+        try {
+            this.showLoading('Searching iTunes API...');
+            
+            const searchParams = {
+                title: this.currentFile.title,
+                artist: this.currentFile.artist,
+                album: this.currentFile.album,
+                duration: this.currentFile.duration
+            };
+
+            console.log('Searching iTunes with params:', searchParams);
+            
+            const result = await window.electronAPI.searchItunes(searchParams);
+            
+            if (result.success) {
+                this.displayItunesResults(result.results, searchParams);
+                this.showSuccess(`Found ${result.results.length} result(s) from iTunes`);
+            } else {
+                this.showError(`iTunes search failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('iTunes search error:', error);
+            this.showError('Failed to search iTunes API');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    displayItunesResults(results, searchParams) {
+        const itunesResults = document.getElementById('itunesResults');
+        const itunesSection = document.getElementById('itunesSection');
+        
+        if (!itunesResults || !itunesSection) return;
+        
+        itunesResults.innerHTML = '';
+        itunesSection.style.display = 'block';
+        
+        if (results.length === 0) {
+            itunesResults.innerHTML = '<div class="no-results">No results found on iTunes</div>';
+            return;
+        }
+
+        // Display top 10 results
+        const topResults = results.slice(0, 10);
+        
+        topResults.forEach((result, index) => {
+            const resultElement = document.createElement('div');
+            resultElement.className = 'itunes-result';
+            resultElement.dataset.resultIndex = index;
+            
+            // Format duration
+            const duration = result.trackTimeMillis ? 
+                this.formatDuration(result.trackTimeMillis / 1000) : 'N/A';
+            
+            // Format release date
+            const releaseDate = result.releaseDate ? 
+                new Date(result.releaseDate).getFullYear() : 'N/A';
+            
+            // Get match score color
+            const scoreColor = this.getScoreColor(result.matchScore);
+            
+            resultElement.innerHTML = `
+                <div class="result-header">
+                    <div class="result-artwork">
+                        ${result.artworkUrl100 ? 
+                            `<img src="${result.artworkUrl100}" alt="Artwork" class="result-artwork-img">` :
+                            '<div class="no-artwork-placeholder">♪</div>'
+                        }
+                    </div>
+                    <div class="result-info">
+                        <div class="result-title">${result.trackName || 'Unknown Title'}</div>
+                        <div class="result-artist">${result.artistName || 'Unknown Artist'}</div>
+                        <div class="result-album">${result.collectionName || 'Unknown Album'}</div>
+                        <div class="result-meta">
+                            <span class="result-year">${releaseDate}</span>
+                            <span class="result-duration">${duration}</span>
+                            <span class="result-genre">${result.primaryGenreName || 'Unknown'}</span>
+                        </div>
+                    </div>
+                    <div class="result-actions">
+                        <div class="match-score" style="color: ${scoreColor}">
+                            ${result.matchScore}% Match
+                        </div>
+                        <button class="btn btn-primary apply-itunes-btn" onclick="app.applyItunesMetadata(${index})">
+                            Apply Metadata
+                        </button>
+                    </div>
+                </div>
+                <div class="result-details">
+                    <div class="itunes-tags">
+                        <div class="tag-group">
+                            <h4>iTunes Information</h4>
+                            <div class="tag-item">
+                                <span class="tag-label">Track ID:</span>
+                                <span class="tag-value">${result.trackId || 'N/A'}</span>
+                            </div>
+                            <div class="tag-item">
+                                <span class="tag-label">Collection ID:</span>
+                                <span class="tag-value">${result.collectionId || 'N/A'}</span>
+                            </div>
+                            <div class="tag-item">
+                                <span class="tag-label">Artist ID:</span>
+                                <span class="tag-value">${result.artistId || 'N/A'}</span>
+                            </div>
+                            <div class="tag-item">
+                                <span class="tag-label">Country:</span>
+                                <span class="tag-value">${result.country || 'USA'}</span>
+                            </div>
+                            <div class="tag-item">
+                                <span class="tag-label">Content Advisory:</span>
+                                <span class="tag-value">${result.trackExplicitness || 'notExplicit'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            itunesResults.appendChild(resultElement);
+        });
+        
+        // Store results for later use
+        this.itunesSearchResults = results;
+    }
+
+    getScoreColor(score) {
+        if (score >= 90) return '#10b981'; // Green
+        if (score >= 70) return '#f59e0b'; // Yellow
+        if (score >= 50) return '#ef4444'; // Orange
+        return '#ef4444'; // Red
+    }
+
+    async applyItunesMetadata(resultIndex) {
+        if (!this.itunesSearchResults || !this.itunesSearchResults[resultIndex]) {
+            this.showError('iTunes result not found');
+            return;
+        }
+
+        if (!this.currentFile) {
+            this.showError('No file selected');
+            return;
+        }
+
+        try {
+            this.showLoading('Enriching metadata...');
+            
+            const itunesData = this.itunesSearchResults[resultIndex];
+            
+            console.log('Applying iTunes metadata:', itunesData);
+            
+            // Enrich metadata
+            const enrichResult = await window.electronAPI.enrichMetadata(this.currentFile, itunesData);
+            
+            if (!enrichResult.success) {
+                throw new Error(enrichResult.error);
+            }
+            
+            // Write to file
+            const writeResult = await window.electronAPI.writeMetadata(
+                this.currentFile.filePath, 
+                enrichResult.enrichedMetadata
+            );
+            
+            if (writeResult.success) {
+                // Reload the file metadata to show updated information
+                await this.loadFileMetadata(this.currentFile.filePath);
+                
+                this.showSuccess(`Metadata successfully updated with ${itunesData.matchScore}% match from iTunes! Backup created.`);
+                
+                // Update the song in the sidebar
+                this.updateSongItemDisplay(this.currentFile.filePath, enrichResult.enrichedMetadata);
+                
+                // Enable enrich button for other files
+                const enrichMetadataBtn = document.getElementById('enrichMetadataBtn');
+                if (enrichMetadataBtn) enrichMetadataBtn.disabled = false;
+                
+            } else {
+                throw new Error(writeResult.error);
+            }
+            
+        } catch (error) {
+            console.error('Error applying iTunes metadata:', error);
+            this.showError(`Failed to apply metadata: ${error.message}`);
+        } finally {
+            this.hideLoading();
+        }
     }
 
     async enrichMetadata() {
-        console.log('Metadata enrichment will be implemented in Feature 4');
-        this.showInfo('Metadata enrichment functionality will be available in a future feature');
+        if (!this.currentFile) {
+            this.showError('No file selected. Please select a file first.');
+            return;
+        }
+
+        if (!this.itunesSearchResults || this.itunesSearchResults.length === 0) {
+            this.showError('No iTunes search results available. Please search iTunes first.');
+            return;
+        }
+
+        // Apply the best match (first result which is already sorted by score)
+        await this.applyItunesMetadata(0);
     }
 
     // UI Helper methods
@@ -542,5 +740,5 @@ class iTunesMetadataPuller {
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app...');
-    new iTunesMetadataPuller();
+    window.app = new iTunesMetadataPuller();
 });
