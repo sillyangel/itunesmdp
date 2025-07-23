@@ -15,4 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchItunes: (searchParams) => ipcRenderer.invoke('search-itunes', searchParams),
   enrichMetadata: (originalMetadata, itunesData) => ipcRenderer.invoke('enrich-metadata', originalMetadata, itunesData),
   writeMetadata: (filePath, enrichedMetadata) => ipcRenderer.invoke('write-metadata', filePath, enrichedMetadata),
+  
+  // Testing
+  testMetadataWriting: () => ipcRenderer.invoke('test-metadata-writing'),
 });

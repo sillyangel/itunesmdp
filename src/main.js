@@ -504,10 +504,82 @@ ipcMain.handle('enrich-metadata', async (event, originalMetadata, itunesData) =>
   }
 });
 
+// Test metadata writing capabilities
+ipcMain.handle('test-metadata-writing', async (event) => {
+  try {
+    console.log('Testing metadata writing capabilities...');
+    
+    // Test 1: Check if node-id3 can be imported
+    try {
+      const NodeID3 = await import('node-id3');
+      console.log('✓ node-id3 import successful');
+      console.log('NodeID3 object:', Object.keys(NodeID3));
+      
+      // Test 2: Check if we can read a simple ID3 tag
+      if (NodeID3.default && NodeID3.default.read) {
+        console.log('✓ node-id3 read function available');
+      } else {
+        console.log('✗ node-id3 read function not available');
+      }
+      
+      if (NodeID3.default && NodeID3.default.write) {
+        console.log('✓ node-id3 write function available');
+      } else {
+        console.log('✗ node-id3 write function not available');
+      }
+      
+    } catch (importError) {
+      console.log('✗ node-id3 import failed:', importError.message);
+      return {
+        success: false,
+        error: `node-id3 import failed: ${importError.message}`,
+        tests: ['import_failed']
+      };
+    }
+    
+    return {
+      success: true,
+      message: 'All tests passed',
+      tests: ['import_success', 'functions_available']
+    };
+    
+  } catch (error) {
+    console.error('Test error:', error);
+    return {
+      success: false,
+      error: error.message,
+      tests: ['test_error']
+    };
+  }
+});
+
 // Write enriched metadata to file
 ipcMain.handle('write-metadata', async (event, filePath, enrichedMetadata) => {
   try {
-    const NodeID3 = await import('node-id3');
+    console.log('Attempting to write metadata to:', filePath);
+    console.log('Enriched metadata:', enrichedMetadata);
+    
+    // Create backup of original file first
+    const backupPath = filePath + '.backup';
+    console.log('Creating backup at:', backupPath);
+    
+    try {
+      await fs.copyFile(filePath, backupPath);
+      console.log('Backup created successfully');
+    } catch (backupError) {
+      console.error('Failed to create backup:', backupError);
+      throw new Error(`Failed to create backup: ${backupError.message}`);
+    }
+    
+    // Try to import node-id3
+    let NodeID3;
+    try {
+      NodeID3 = await import('node-id3');
+      console.log('NodeID3 imported successfully');
+    } catch (importError) {
+      console.error('Failed to import node-id3:', importError);
+      throw new Error(`Failed to import node-id3: ${importError.message}`);
+    }
     
     // Convert our metadata format to node-id3 format
     const id3Tags = {
@@ -537,16 +609,30 @@ ipcMain.handle('write-metadata', async (event, filePath, enrichedMetadata) => {
     // Add artwork if available
     if (enrichedMetadata.image && enrichedMetadata.image.imageBuffer) {
       id3Tags.image = enrichedMetadata.image;
+      console.log('Adding artwork to tags');
     }
     
-    // Create backup of original file
-    const backupPath = filePath + '.backup';
-    await fs.copyFile(filePath, backupPath);
+    console.log('Prepared ID3 tags:', id3Tags);
     
     // Write new tags
-    const success = NodeID3.default.write(id3Tags, filePath);
+    let success;
+    try {
+      success = NodeID3.default.write(id3Tags, filePath);
+      console.log('NodeID3 write result:', success);
+    } catch (writeError) {
+      console.error('NodeID3 write error:', writeError);
+      // Restore backup if write failed
+      try {
+        await fs.copyFile(backupPath, filePath);
+        console.log('Backup restored after write failure');
+      } catch (restoreError) {
+        console.error('Failed to restore backup:', restoreError);
+      }
+      throw new Error(`Failed to write metadata: ${writeError.message}`);
+    }
     
     if (success) {
+      console.log('Metadata written successfully');
       return {
         success: true,
         message: 'Metadata written successfully',
@@ -554,8 +640,13 @@ ipcMain.handle('write-metadata', async (event, filePath, enrichedMetadata) => {
       };
     } else {
       // Restore backup if write failed
-      await fs.copyFile(backupPath, filePath);
-      throw new Error('Failed to write metadata tags');
+      try {
+        await fs.copyFile(backupPath, filePath);
+        console.log('Backup restored after unsuccessful write');
+      } catch (restoreError) {
+        console.error('Failed to restore backup:', restoreError);
+      }
+      throw new Error('NodeID3 returned false - write unsuccessful');
     }
     
   } catch (error) {

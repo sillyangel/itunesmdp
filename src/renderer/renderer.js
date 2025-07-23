@@ -66,6 +66,14 @@ class iTunesMetadataPuller {
                 this.clearAllSongs();
             });
         }
+        
+        // Test metadata writing (for debugging)
+        const testBtn = document.getElementById('testMetadataBtn');
+        if (testBtn) {
+            testBtn.addEventListener('click', () => {
+                this.testMetadataWriting();
+            });
+        }
     }
 
     toggleTheme() {
@@ -626,25 +634,37 @@ class iTunesMetadataPuller {
             const itunesData = this.itunesSearchResults[resultIndex];
             
             console.log('Applying iTunes metadata:', itunesData);
+            console.log('Current file:', this.currentFile);
             
             // Enrich metadata
+            console.log('Calling enrichMetadata...');
             const enrichResult = await window.electronAPI.enrichMetadata(this.currentFile, itunesData);
+            console.log('Enrich result:', enrichResult);
             
             if (!enrichResult.success) {
                 throw new Error(enrichResult.error);
             }
             
+            console.log('Enriched metadata:', enrichResult.enrichedMetadata);
+            
             // Write to file
+            console.log('Calling writeMetadata...');
             const writeResult = await window.electronAPI.writeMetadata(
                 this.currentFile.filePath, 
                 enrichResult.enrichedMetadata
             );
             
+            console.log('Write result:', writeResult);
+            
             if (writeResult.success) {
-                // Reload the file metadata to show updated information
-                await this.loadFileMetadata(this.currentFile.filePath);
+                this.showSuccess(`Metadata successfully updated with ${itunesData.matchScore}% match from iTunes! Backup created at: ${writeResult.backupPath}`);
                 
-                this.showSuccess(`Metadata successfully updated with ${itunesData.matchScore}% match from iTunes! Backup created.`);
+                // Wait a moment before reloading to ensure file is fully written
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Reload the file metadata to show updated information
+                console.log('Reloading file metadata...');
+                await this.loadFileMetadata(this.currentFile.filePath);
                 
                 // Update the song in the sidebar
                 this.updateSongItemDisplay(this.currentFile.filePath, enrichResult.enrichedMetadata);
@@ -654,7 +674,7 @@ class iTunesMetadataPuller {
                 if (enrichMetadataBtn) enrichMetadataBtn.disabled = false;
                 
             } else {
-                throw new Error(writeResult.error);
+                throw new Error(writeResult.error || 'Unknown write error');
             }
             
         } catch (error) {
@@ -734,6 +754,28 @@ class iTunesMetadataPuller {
 
     showInfo(message) {
         this.showNotification(message, 'info');
+    }
+    
+    // Testing function for debugging metadata writing
+    async testMetadataWriting() {
+        try {
+            console.log('Testing metadata writing capabilities...');
+            this.showLoading('Testing metadata writing...');
+            
+            const result = await window.electronAPI.testMetadataWriting();
+            console.log('Test result:', result);
+            
+            if (result.success) {
+                this.showSuccess(`Metadata writing test passed: ${result.message}`);
+            } else {
+                this.showError(`Metadata writing test failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Test error:', error);
+            this.showError(`Test failed: ${error.message}`);
+        } finally {
+            this.hideLoading();
+        }
     }
 }
 
